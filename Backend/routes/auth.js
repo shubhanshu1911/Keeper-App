@@ -3,9 +3,9 @@ const User = require('../models/User');
 const { body, validationResult } = require('express-validator');
 const router = express.Router();
 
-// Create a User using : POST "/api/auth/". Doesn't require auth
+// Create a User using : POST "/api/auth/createuser". Doesn't require auth
 router.post(
-    '/',
+    '/createuser',
     [
         body('name', 'Enter a valid Name').isLength({ min: 3 }),
         body('email', 'Enter a valid Email').isEmail(),
@@ -13,15 +13,21 @@ router.post(
     ],
     async (req, res) => {
         try {
-            const result = validationResult(req);
+            const error = validationResult(req);
 
-            if (!result.isEmpty()) {
+            if (!error.isEmpty()) {
                 // Validation errors
-                return res.send({ errors: result.array() });
+                return res.status.json({ errors: error.array() });
+            }
+
+            // Checking for the duplication Email id of a user 
+            let user = await User.findOne({emial : req.body.email});
+            if(user){
+                return res.status(400).json({error : "Sorry, Email is already registered."})
             }
 
             // Valid input
-            const user = await User.create({
+            user = await User.create({
                 name: req.body.name,
                 email: req.body.email,
                 password: req.body.password,
@@ -29,11 +35,6 @@ router.post(
 
             res.json(user);
         } catch (error) {
-            if (error.code === 11000 && error.keyPattern && error.keyPattern.email) {
-                // Duplicate key error for email
-                return res.status(400).json({ errors: [{ msg: 'Email is already registered.' }] });
-            }
-
             // Other errors
             console.error('Error creating user:', error);
             res.status(500).send('Internal Server Error');
