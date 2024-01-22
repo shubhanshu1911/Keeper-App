@@ -3,6 +3,13 @@ const User = require('../models/User');
 const { body, validationResult } = require('express-validator');
 const router = express.Router();
 
+// bcrypt is a authentiction method which help in genrating hash and salt
+const bcrypt = require('bcryptjs');
+
+// jsonwebtoken is a security layer between client and server which provides token to the client
+const jwt = require('jsonwebtoken');
+const JWT_SECRET = "shubhanshu@iiitdm";
+
 // Create a User using : POST "/api/auth/createuser". Doesn't require auth
 router.post(
     '/createuser',
@@ -26,14 +33,25 @@ router.post(
                 return res.status(400).json({error : "Sorry, Email is already registered."})
             }
 
+            // Using bcrypt and returns promises 
+            const salt = await bcrypt.genSalt(10);
+            const secPass = await bcrypt.hash(req.body.password, salt);
+
             // Valid input
             user = await User.create({
                 name: req.body.name,
                 email: req.body.email,
-                password: req.body.password,
+                password: secPass,
             });
+            
+            const data = {
+                user : {
+                    id : user.id
+                }
+            }
 
-            res.json(user);
+            const authToken = jwt.sign(data,JWT_SECRET)
+            res.json({authToken});
         } catch (error) {
             // Other errors
             console.error('Error creating user:', error);
